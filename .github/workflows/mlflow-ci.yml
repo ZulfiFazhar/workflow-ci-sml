@@ -70,58 +70,58 @@ jobs:
           echo "RUN_ID=$RUN_ID" >> $GITHUB_OUTPUT
           echo "Latest run ID: $RUN_ID"
 
-      - name: Upload artifacts to GitHub
-        uses: actions/upload-artifact@v3
-        with:
-          name: mlflow-artifacts
-          path: |
-            mlruns/
-            MLProject/*.png
-            MLProject/*.json
+      # - name: Upload artifacts to GitHub
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: mlflow-artifacts
+      #     path: |
+      #       mlruns/
+      #       MLProject/*.png
+      #       MLProject/*.json
 
-      - name: Build Docker Model
-        if: steps.get_run_id.outputs.RUN_ID != 'no-run-found'
-        run: |
-          cd MLProject
-          mlflow models build-docker \
-            -m "runs:/${{ steps.get_run_id.outputs.RUN_ID }}/model" \
-            -n "${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}" \
-            --enable-mlserver
+      # - name: Build Docker Model
+      #   if: steps.get_run_id.outputs.RUN_ID != 'no-run-found'
+      #   run: |
+      #     cd MLProject
+      #     mlflow models build-docker \
+      #       -m "runs:/${{ steps.get_run_id.outputs.RUN_ID }}/model" \
+      #       -n "${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}" \
+      #       --enable-mlserver
 
-      - name: Log in to Docker Hub
-        if: steps.get_run_id.outputs.RUN_ID != 'no-run-found'
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+      # - name: Log in to Docker Hub
+      #   if: steps.get_run_id.outputs.RUN_ID != 'no-run-found'
+      #   uses: docker/login-action@v2
+      #   with:
+      #     username: ${{ secrets.DOCKER_USERNAME }}
+      #     password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Tag Docker image
-        if: steps.get_run_id.outputs.RUN_ID != 'no-run-found'
-        run: |
-          docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:latest \
-                     ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}
+      # - name: Tag Docker image
+      #   if: steps.get_run_id.outputs.RUN_ID != 'no-run-found'
+      #   run: |
+      #     docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:latest \
+      #                ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}
 
-      - name: Push Docker image
-        if: steps.get_run_id.outputs.RUN_ID != 'no-run-found'
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:latest
-          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}
+      # - name: Push Docker image
+      #   if: steps.get_run_id.outputs.RUN_ID != 'no-run-found'
+      #   run: |
+      #     docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:latest
+      #     docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}
 
-      - name: Save Docker Hub URL
-        if: steps.get_run_id.outputs.RUN_ID != 'no-run-found'
-        run: |
-          echo "Docker Hub: https://hub.docker.com/r/${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}" > MLProject/docker_hub_url.txt
-          cat MLProject/docker_hub_url.txt
+      # - name: Save Docker Hub URL
+      #   if: steps.get_run_id.outputs.RUN_ID != 'no-run-found'
+      #   run: |
+      #     echo "Docker Hub: https://hub.docker.com/r/${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}" > MLProject/docker_hub_url.txt
+      #     cat MLProject/docker_hub_url.txt
 
-      - name: Commit artifacts
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add MLProject/*.txt MLProject/*.png MLProject/*.json || true
-          git diff --staged --quiet || git commit -m "ci: update artifacts [skip ci]"
+      # - name: Commit artifacts
+      #   run: |
+      #     git config --local user.email "github-actions[bot]@users.noreply.github.com"
+      #     git config --local user.name "github-actions[bot]"
+      #     git add MLProject/*.txt MLProject/*.png MLProject/*.json || true
+      #     git diff --staged --quiet || git commit -m "ci: update artifacts [skip ci]"
 
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ github.ref }}
+      # - name: Push changes
+      #   uses: ad-m/github-push-action@master
+      #   with:
+      #     github_token: ${{ secrets.GITHUB_TOKEN }}
+      #     branch: ${{ github.ref }}
