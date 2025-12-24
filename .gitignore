@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment
+.env
+.venv
+env/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Model artifacts
+*.pkl
+*.h5
+*.pth
+
+# Logs
+*.log
+
+# Temporary files
+*.png
+*.json
+*.txt
+!docker_hub_url.txt
+!requirements.txt

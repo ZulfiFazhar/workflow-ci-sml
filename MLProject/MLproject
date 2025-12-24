@@ -1,0 +1,23 @@
+name: credit_scoring_mlflow_project
+
+conda_env: conda.yaml
+
+entry_points:
+  main:
+    parameters:
+      data_path:
+        type: string
+        default: "Credit_Score_Classification_Dataset_preprocessing.csv"
+      target_col:
+        type: string
+        default: "Credit Score"
+      test_size:
+        type: float
+        default: 0.2
+      n_estimators:
+        type: int
+        default: 100
+      max_depth:
+        type: int
+        default: 20
+    command: "python modelling.py --data {data_path} --target {target_col} --test-size {test_size} --n-estimators {n_estimators} --max-depth {max_depth}"

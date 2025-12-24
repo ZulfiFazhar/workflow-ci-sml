@@ -1,0 +1,135 @@
+name: CI/CD MLflow Project
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'MLProject/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PYTHON_VERSION: "3.12.7"
+  MLFLOW_TRACKING_URI: "http://127.0.0.1:5000"
+  EXPERIMENT_NAME: "Credit_Scoring_CI"
+  DOCKER_IMAGE_NAME: "credit-scoring-model"
+
+jobs:
+  train-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Check Env
+        run: |
+          python --version
+          pip --version
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mlflow==2.19.0 scikit-learn pandas numpy matplotlib seaborn boto3
+
+      - name: Set MLflow Tracking URI
+        run: |
+          echo "MLFLOW_TRACKING_URI=${{ env.MLFLOW_TRACKING_URI }}" >> $GITHUB_ENV
+
+      - name: Run mlflow project
+        run: |
+          cd MLProject
+          mlflow run . \
+            --experiment-name ${{ env.EXPERIMENT_NAME }} \
+            -P data_path=Credit_Score_Classification_Dataset_preprocessing.csv \
+            -P target_col="Credit Score" \
+            --env-manager=local
+
+      - name: Get latest MLflow run id
+        id: get_run_id
+        run: |
+          pip install mlflow boto3
+          RUN_ID=$(python -c "
+          import mlflow
+          mlflow.set_tracking_uri('${{ env.MLFLOW_TRACKING_URI }}')
+          exp = mlflow.get_experiment_by_name('${{ env.EXPERIMENT_NAME }}')
+          if exp:
+              runs = mlflow.search_runs(experiment_ids=[exp.experiment_id], order_by=['start_time DESC'], max_results=1)
+              if not runs.empty:
+                  print(runs.iloc[0]['run_id'])
+              else:
+                  print('no-run-found')
+          else:
+              print('no-experiment-found')
+          ")
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "Latest run ID: $RUN_ID"
+
+      - name: Install Python dependencies
+        run: |
+          pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+
+      - name: Upload artifacts to GitHub
+        uses: actions/upload-artifact@v3
+        with:
+          name: mlflow-artifacts
+          path: |
+            mlruns/
+            MLProject/*.png
+            MLProject/*.json
+
+      - name: Build Docker Model
+        if: steps.get_run_id.outputs.RUN_ID != 'no-run-found'
+        run: |
+          cd MLProject
+          mlflow models build-docker \
+            -m "runs:/${{ steps.get_run_id.outputs.RUN_ID }}/model" \
+            -n "${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}" \
+            --enable-mlserver
+
+      - name: Log in to Docker Hub
+        if: steps.get_run_id.outputs.RUN_ID != 'no-run-found'
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Tag Docker image
+        if: steps.get_run_id.outputs.RUN_ID != 'no-run-found'
+        run: |
+          docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:latest \
+                     ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Push Docker image
+        if: steps.get_run_id.outputs.RUN_ID != 'no-run-found'
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:${{ github.sha }}
+
+      - name: Save Docker Hub URL
+        if: steps.get_run_id.outputs.RUN_ID != 'no-run-found'
+        run: |
+          echo "Docker Hub: https://hub.docker.com/r/${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}" > MLProject/docker_hub_url.txt
+          cat MLProject/docker_hub_url.txt
+
+      - name: Commit artifacts
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add MLProject/*.txt MLProject/*.png MLProject/*.json || true
+          git diff --staged --quiet || git commit -m "ci: update artifacts [skip ci]"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
