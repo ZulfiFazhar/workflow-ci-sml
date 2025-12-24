@@ -149,7 +149,7 @@ def train_model(X_train, X_test, y_train, y_test, feature_names, n_estimators, m
             registered_model_name="CreditScoringCI"
         )
         
-        print(f"\n✅ Logged artifacts:")
+        print(f"\nLogged artifacts:")
         print(f"  - {class_report_path}")
         print(f"  - {cm_path}")
         print(f"  - {fi_path}")
@@ -157,7 +157,7 @@ def train_model(X_train, X_test, y_train, y_test, feature_names, n_estimators, m
         
         # Get run ID
         run_id = mlflow.active_run().info.run_id
-        print(f"\n🔑 Run ID: {run_id}")
+        print(f"\nRun ID: {run_id}")
         
         return model, run_id
 
@@ -172,8 +172,8 @@ def main():
     
     args = parser.parse_args()
     
-    # Set tracking URI (akan di-override oleh environment variable di CI)
-    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
+    # Set tracking URI - use file-based backend for CI compatibility
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "./mlruns")
     mlflow.set_tracking_uri(tracking_uri)
     
     print(f"MLflow Tracking URI: {tracking_uri}")
